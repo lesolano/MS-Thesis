@@ -1,0 +1,35 @@
+#Script #4
+#This script exemplifies the read quality control process with 3 HeLa samples from distinct experimental conditions.
+
+#organizational folders and names
+#main folder= /home/luis/Documents/AR_testing
+#BBDUK Folder= /home/luis/BI_sandbox/Trimming/bbmap/bbduk.sh
+#fastq.gz files = /home/luis/Documents/AR_testing/rawdata
+#list of fq files
+# HeLa1_0R_1.fq.gz  HeLa1_0R_2.fq.gz  HeLa1_8R_1.fq.gz  HeLa1_8R_2.fq.gz  HeLa1cnt_1.fq.gz  HeLa1cnt_2.fq.gz
+
+#####BBDUK Adapter Trim.
+#Calls BBDUK shell script on inputs (paired fq.gz files), outputs cleaned labeled fq.gz files, and a summary stats .txt file
+#Need to add parameter settings justifications
+
+#Trim Adapters BBDUK HeLa1_0R
+/home/luis/BI_sandbox/Trimming/bbmap/bbduk.sh in1=/home/luis/Documents/AR_testing/rawdata/HeLa1_0R_1.fq.gz in2=/home/luis/Documents/AR_testing/rawdata/HeLa1_0R_2.fq.gz out1=/home/luis/Documents/AR_testing/rawdata/HeLa1_0R_1clean.fq.gz out2=/home/luis/Documents/AR_testing/rawdata/HeLa1_0R_2clean.fq.gz outm=/home/luis/Documents/AR_testing/rawdata/amatched.fq ref=/home/luis/BI_sandbox/Trimming/bbmap/resources/adapters.fa ktrim=r k=23 mink=11 hdist=1 tpe tbo stats=/home/luis/Documents/AR_testing/rawdata/astats.txt
+
+#Trim Adapters BBDUK HeLa1_8R
+/home/luis/BI_sandbox/Trimming/bbmap/bbduk.sh in1=/home/luis/Documents/AR_testing/rawdata/HeLa1_8R_1.fq.gz in2=/home/luis/Documents/AR_testing/rawdata/HeLa1_8R_2.fq.gz out1=/home/luis/Documents/AR_testing/rawdata/HeLa1_8R_1clean.fq.gz out2=/home/luis/Documents/AR_testing/rawdata/HeLa1_8R_2clean.fq.gz outm=/home/luis/Documents/AR_testing/rawdata/amatched.fq ref=/home/luis/BI_sandbox/Trimming/bbmap/resources/adapters.fa ktrim=r k=23 mink=11 hdist=1 tpe tbo stats=/home/luis/Documents/AR_testing/rawdata/astats.txt
+
+#Trim Adapters BBDUK HeLa1cnt
+/home/luis/BI_sandbox/Trimming/bbmap/bbduk.sh in1=/home/luis/Documents/AR_testing/rawdata/HeLa1cnt_1.fq.gz in2=/home/luis/Documents/AR_testing/rawdata/HeLa1cnt_2.fq.gz out1=/home/luis/Documents/AR_testing/rawdata/HeLa1cnt_1clean.fq.gz out2=/home/luis/Documents/AR_testing/rawdata/HeLa1cnt_2clean.fq.gz outm=/home/luis/Documents/AR_testing/rawdata/amatched.fq ref=/home/luis/BI_sandbox/Trimming/bbmap/resources/adapters.fa ktrim=r k=23 mink=11 hdist=1 tpe tbo stats=/home/luis/Documents/AR_testing/rawdata/astats.txt
+
+#####BBDUK PhiX Trim and Quality Trim
+#Calls BBDUK shell script on inputs (adapter-cleaned paired fq.gz files), outputs cleaned labeled fq.gz files, and a summary stats .txt file
+#If quality threshold criteria fails, reads are flagged for removal unless satisfactory phred score is achieved by trimming base pairs one-by-one from the right side.
+
+#Filter Phix + Quality Trim to Q10 BBDUK HeLa1_0R
+/home/luis/BI_sandbox/Trimming/bbmap/bbduk.sh in1=/home/luis/Documents/AR_testing/rawdata/HeLa1_0R_1clean.fq.gz in2=/home/luis/Documents/AR_testing/rawdata/HeLa1_0R_2clean.fq.gz out1=/home/luis/Documents/AR_testing/clean/HeLa1_0R_1tf.fq.gz out2=/home/luis/Documents/AR_testing/clean/HeLa1_0R_2tf.fq.gz outm=/home/luis/Documents/AR_testing/clean/HeLa1_0Rphixmatched.fq ref=/home/luis/BI_sandbox/Trimming/bbmap/resources/phix174_ill.ref.fa.gz k=31 hdist=1 stats=/home/luis/Documents/AR_testing/clean/HeLa1_0Rphixstats.txt qtrim=r trimq=10
+
+#Filter Phix + Quality Trim to Q10 BBDUK HeLa1_8R
+/home/luis/BI_sandbox/Trimming/bbmap/bbduk.sh in1=/home/luis/Documents/AR_testing/rawdata/HeLa1_8R_1clean.fq.gz in2=/home/luis/Documents/AR_testing/rawdata/HeLa1_8R_2clean.fq.gz out1=/home/luis/Documents/AR_testing/clean/HeLa1_8R_1tf.fq.gz out2=/home/luis/Documents/AR_testing/clean/HeLa1_8R_2tf.fq.gz outm=/home/luis/Documents/AR_testing/clean/HeLa1_0Rphixmatched.fq ref=/home/luis/BI_sandbox/Trimming/bbmap/resources/phix174_ill.ref.fa.gz k=31 hdist=1 stats=/home/luis/Documents/AR_testing/clean/HeLa1_8Rphixstats.txt qtrim=r trimq=10
+
+#Filter Phix + Quality Trim to Q10 BBDUK HeLa1cnt
+/home/luis/BI_sandbox/Trimming/bbmap/bbduk.sh in1=/home/luis/Documents/AR_testing/rawdata/HeLa1cnt_1clean.fq.gz in2=/home/luis/Documents/AR_testing/rawdata/HeLa1cnt_2clean.fq.gz out1=/home/luis/Documents/AR_testing/clean/HeLa1cnt_1tf.fq.gz out2=/home/luis/Documents/AR_testing/clean/HeLa1cnt_2tf.fq.gz outm=/home/luis/Documents/AR_testing/clean/HeLa1_0Rphixmatched.fq ref=/home/luis/BI_sandbox/Trimming/bbmap/resources/phix174_ill.ref.fa.gz k=31 hdist=1 stats=/home/luis/Documents/AR_testing/clean/HeLa1cntphixstats.txt qtrim=r trimq=10
