@@ -1,0 +1,14 @@
+#Script #8
+#This command line script exemplifies the feature counting process with 3 HeLa samples from distinct experimental conditions.
+
+#HTSeq-count is called with Python, inputs a position sorted .BAM file (respective .BAI must be in the same directory as .BAM) and a 
+#.GTF reference annotation file. The command outputs a .csv file with feature specific raw read counts.
+
+#run dir /home/luis/Documents/AR_testing/sorted/HeLa1cnt
+python3 -m HTSeq.scripts.count --order=pos --stranded=reverse --type=exon --idattr=gene_id --additional-attr=gene_name --mode=union --counts_output=/home/luis/Documents/AR_testing/HTSeqCounts_HeLa1cnt_BC_2PS_SSI_rev.csv /home/luis/Documents/AR_testing/sorted/HeLa1cnt/HeLa1cntAligned.out.bam /home/luis/BI_sandbox/HTseqcounts/gencode.v38.primary_assembly.annotation.gtf
+
+#run dir /home/luis/Documents/AR_testing/sorted/HeLa1_0R
+python3 -m HTSeq.scripts.count --order=pos --stranded=reverse --type=exon --idattr=gene_id --additional-attr=gene_name --mode=union --counts_output=/home/luis/Documents/AR_testing/HTSeqCounts_HeLa1_0R_BC_2PS_SSI_rev.csv /home/luis/Documents/AR_testing/sorted/HeLa1_0R/HeLa1_0RAligned.out.bam /home/luis/BI_sandbox/HTseqcounts/gencode.v38.primary_assembly.annotation.gtf
+
+#run dir /home/luis/Documents/AR_testing/sorted/HeLa1_8R
+python3 -m HTSeq.scripts.count --order=pos --stranded=reverse --type=exon --idattr=gene_id --additional-attr=gene_name --mode=union --counts_output=/home/luis/Documents/AR_testing/HTSeqCounts_HeLa1_8R_BC_2PS_SSI_rev.csv /home/luis/Documents/AR_testing/sorted/HeLa1_8R/HeLa1_8RAligned.out.bam /home/luis/BI_sandbox/HTseqcounts/gencode.v38.primary_assembly.annotation.gtf
