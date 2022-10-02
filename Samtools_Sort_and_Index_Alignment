@@ -1,0 +1,26 @@
+#Script #7
+#This script exemplifies the samtools sorting process with 3 HeLa samples from distinct experimental conditions.
+
+#important names and organizational folders
+#Run directory =home/luis/Documents/AR_testing/sorted
+
+#Begin with aligned.out.bam files in samtools run directory. Samtools sorts .BAM files and creates .BAI files for .BAM files.
+#First calls samtools sort on the STAR aligned, but unsorted, .BAM files. Outputs a sorted .bam file of the same name.
+#Then calls samtools index on the sorted .BAM files and outputs a labeled index file (.BAI) for that .BAM file. 
+
+#HeLa1cnt
+samtools sort -m 450000000 -o HeLa1cntAligned.out.bam -O bam -@ 24 HeLa1cntAligned.out.bam
+
+samtools index -b HeLa1cntAligned.out.bam HeLa1cntAligned.out.bam.bai
+
+#HeLa1_0R
+samtools sort -m 450000000 -o HeLa1_0RAligned.out.bam -O bam -@ 24 HeLa1_0RAligned.out.bam
+
+samtools index -b HeLa1_0RAligned.out.bam HeLa1_0RAligned.out.bam.bai
+
+#HeLa1_8R
+samtools sort -m 450000000 -o HeLa1_8RAligned.out.bam -O bam -@ 24 HeLa1_8RAligned.out.bam
+
+samtools index -b HeLa1_8RAligned.out.bam HeLa1_8RAligned.out.bam.bai
+
+
