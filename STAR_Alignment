@@ -1,0 +1,23 @@
+#Script#6
+#This script exemplifies the STAR alignment process with 3 HeLa samples from distinct experimental conditions.
+#STAR aligns adapter and PhiX cleaned reads of sufficient quality to a previously generated indexed reference genome.
+
+#Organizational Folders and Names
+#run folder= /home/luis/Documents/AR_testing
+#genomeDir= /home/luis/BI_sandbox/alignwSTAR/IndexedGenome
+#BBDUK cleaned files=/home/luis/Documents/AR_testing/clean/
+#output folder =/home/luis/Documents/AR_testing/bam/
+
+#Run STAR in Two-Pass Mode Basic
+#STAR is directed towards a directory with a previously indexed genome and reads in paired-end, compressed, cleaned, high quality 
+#fq.gz files. STAR evaluates these files in splice-aware two-pass alignment mode and outputs unsorted, labeled .BAM files.
+#Need to add parameter settings justifications
+
+#HeLa1_0R
+STAR --runThreadN 24 --runMode alignReads --twopassMode Basic --genomeDir /home/luis/BI_sandbox/alignwSTAR/IndexedGenome --readFilesIn /home/luis/Documents/AR_testing/clean/HeLa1_0R_1tf.fq.gz /home/luis/Documents/AR_testing/clean/HeLa1_0R_2tf.fq.gz --genomeLoad NoSharedMemory --outFileNamePrefix /home/luis/Documents/AR_testing/bam/HeLa1_0R --outSAMtype BAM Unsorted --outReadsUnmapped Fastx --quantMode GeneCounts --readFilesCommand zcat
+
+#HeLa1_8R
+STAR --runThreadN 24 --runMode alignReads --twopassMode Basic --genomeDir /home/luis/BI_sandbox/alignwSTAR/IndexedGenome --readFilesIn /home/luis/Documents/AR_testing/clean/HeLa1_8R_1tf.fq.gz /home/luis/Documents/AR_testing/clean/HeLa1_8R_2tf.fq.gz --genomeLoad NoSharedMemory --outFileNamePrefix /home/luis/Documents/AR_testing/bam/HeLa1_8R --outSAMtype BAM Unsorted --outReadsUnmapped Fastx --quantMode GeneCounts --readFilesCommand zcat
+
+#HeLa1cnt
+STAR --runThreadN 24 --runMode alignReads --twopassMode Basic --genomeDir /home/luis/BI_sandbox/alignwSTAR/IndexedGenome --readFilesIn /home/luis/Documents/AR_testing/clean/HeLa1cnt_1tf.fq.gz /home/luis/Documents/AR_testing/clean/HeLa1cnt_2tf.fq.gz --genomeLoad NoSharedMemory --outFileNamePrefix /home/luis/Documents/AR_testing/bam/HeLa1cnt --outSAMtype BAM Unsorted --outReadsUnmapped Fastx --quantMode GeneCounts --readFilesCommand zcat
