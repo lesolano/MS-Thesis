@@ -97,7 +97,6 @@ HELA_combined_screeplot<-qplot(c(1:25), HELAsummaryObj, aes(y=HELAsummaryObj$imp
 #Biplot works but genes are eigenvectors and it's too many arrows to be useful. 
 #Might be useful if only top X genes were plotted, but score plots already gives us PCXvsPCY.
 
-
 #eigenvectors are negative in R by default. Multiply by -1 to reverse
 #rotation contains gene contributions to PCs, X contains sample contributions
 #HELA_pca_res$rotation <- -1*HELA_pca_res$rotation
