@@ -1,0 +1,165 @@
+#####load libraries#####
+library(topGO)
+library("org.Hs.eg.db")
+library(lattice)
+####import data#####
+#From the dds results object, save gene names and p-values. Create a named numeric vector.
+
+Genes_HeLa0RvsHeLaControl<-HeLa0RvsHeLaControl@rownames
+rawpval_HeLa0RvsHeLaControl<- HeLa0RvsHeLaControl$pvalue
+Genelist_HeLa0RvsHeLaControl<- setNames(rawpval_HeLa0RvsHeLaControl, Genes_HeLa0RvsHeLaControl)
+
+Genes_HeLa8RvsHeLaControl<-HeLa8RvsHeLaControl@rownames
+rawpval_HeLa8RvsHeLaControl<- HeLa8RvsHeLaControl$pvalue
+Genelist_HeLa8RvsHeLaControl<- setNames(rawpval_HeLa8RvsHeLaControl, Genes_HeLa8RvsHeLaControl)
+
+Genes_HeLa8RvsHeLa0R<-HeLa8RvsHeLa0R@rownames
+rawpval_HeLa8RvsHeLa0R<- HeLa8RvsHeLa0R$pvalue
+Genelist_HeLa8RvsHeLa0R<- setNames(rawpval_HeLa8RvsHeLa0R, Genes_HeLa8RvsHeLa0R)
+
+#Create the topGOdata object for each ontology#####
+
+GOdata_HeLa0RvsHeLaControl_BP <- new("topGOdata",
+                                  ontology = "BP", 
+                                  allGenes = Genelist_HeLa0RvsHeLaControl, 
+                                  geneSel=function(p) p < 0.01, 
+                                  description ="HeLa0RvsHeLaControl_BP",
+                                  nodeSize = 10,
+                                  annot=annFUN.org, 
+                                  mapping="org.Hs.eg.db", 
+                                  ID="Ensembl") 
+                                  
+GOdata_HeLa8RvsHeLaControl_BP <- new("topGOdata",
+                                  ontology = "BP", 
+                                  allGenes = Genelist_HeLa8RvsHeLaControl, 
+                                  geneSel=function(p) p < 0.01, 
+                                  description ="HeLa_R0_Genes",
+                                  nodeSize = 10,
+                                  annot=annFUN.org, 
+                                  mapping="org.Hs.eg.db", 
+                                  ID="Ensembl") 
+
+GOdata_HeLa8RvsHeLa0R_BP <- new("topGOdata",
+                                  ontology = "BP", 
+                                  allGenes = Genelist_HeLa8RvsHeLa0R, 
+                                  geneSel=function(p) p < 0.01, 
+                                  description ="HeLa8RvsHeLa0R_BP",
+                                  nodeSize = 10,
+                                  annot=annFUN.org, 
+                                  mapping="org.Hs.eg.db", 
+                                  ID="Ensembl") 
+
+#Add the rest of the ontologies and rest of the comparisons
+
+#View GOdata Objects #####
+GOdata_HeLa0RvsHeLaControl_BP
+GOdata_HeLa8RvsHeLaControl_BP
+GOdata_HeLa8RvsHeLa0R_BP
+
+
+#####Run Fisher, Kolmogorov-Smirnov, and custom TopGO elim stat methods #####
+#(0RvsControl_BP)
+resultFisher_HeLa0RvsHeLaControl_BP <- runTest(GOdata_HeLa0RvsHeLaControl_BP, algorithm = "classic", statistic = "fisher")
+resultKS_HeLa0RvsHeLaControl_BP <- runTest(GOdata_HeLa0RvsHeLaControl_BP, algorithm = "classic", statistic = "ks")
+resultKS.elim_HeLa0RvsHeLaControl_BP <- runTest(GOdata_HeLa0RvsHeLaControl_BP, algorithm = "elim", statistic = "ks")
+
+allRes_HeLa0RvsHeLaControl_BP <- GenTable(GOdata_HeLa0RvsHeLaControl_BP, classicFisher = resultFisher_HeLa0RvsHeLaControl_BP,
+                   classicKS = resultKS_HeLa0RvsHeLaControl_BP, elimKS = resultKS.elim_HeLa0RvsHeLaControl_BP,
+                   orderBy = "elimKS", ranksOf = "classicFisher", topNodes = 10)
+
+pValue.classic_HeLa0RvsHeLaControl_BP <- score(resultKS_HeLa0RvsHeLaControl_BP)
+pValue.elim_HeLa0RvsHeLaControl_BP <- score(resultKS.elim_HeLa0RvsHeLaControl_BP)[names(pValue.classic_HeLa0RvsHeLaControl_BP)]
+gstat_HeLa0RvsHeLaControl_BP <- termStat(GOdata_HeLa0RvsHeLaControl_BP, names(pValue.classic_HeLa0RvsHeLaControl_BP))
+gSize_HeLa0RvsHeLaControl_BP <- gstat_HeLa0RvsHeLaControl_BP$Annotated / max(gstat_HeLa0RvsHeLaControl_BP$Annotated) * 4
+
+#(8RvsControl_BP)
+resultFisher_HeLa8RvsHeLaControl_BP <- runTest(GOdata_HeLa8RvsHeLaControl_BP, algorithm = "classic", statistic = "fisher")
+resultKS_HeLa8RvsHeLaControl_BP <- runTest(GOdata_HeLa8RvsHeLaControl_BP, algorithm = "classic", statistic = "ks")
+resultKS.elim_HeLa8RvsHeLaControl_BP <- runTest(GOdata_HeLa8RvsHeLaControl_BP, algorithm = "elim", statistic = "ks")
+
+allRes_HeLa8RvsHeLaControl_BP <- GenTable(GOdata_HeLa8RvsHeLaControl_BP, classicFisher = resultFisher_HeLa8RvsHeLaControl_BP,
+                   classicKS = resultKS_HeLa8RvsHeLaControl_BP, elimKS = resultKS.elim_HeLa8RvsHeLaControl_BP,
+                   orderBy = "elimKS", ranksOf = "classicFisher", topNodes = 10)
+
+pValue.classic_HeLa8RvsHeLaControl_BP <- score(resultKS_HeLa8RvsHeLaControl_BP)
+pValue.elim_HeLa8RvsHeLaControl_BP <- score(resultKS.elim_HeLa8RvsHeLaControl_BP)[names(pValue.classic_HeLa8RvsHeLaControl_BP)]
+gstat_HeLa8RvsHeLaControl_BP <- termStat(GOdata_HeLa8RvsHeLaControl_BP, names(pValue.classic_HeLa8RvsHeLaControl_BP))
+gSize_HeLa8RvsHeLaControl_BP <- gstat_HeLa8RvsHeLaControl_BP$Annotated / max(gstat_HeLa8RvsHeLaControl_BP$Annotated) * 4
+
+(8Rvs0R_BP)
+resultFisher_HeLa8RvsHeLa0R_BP <- runTest(GOdata_HeLa8RvsHeLa0R_BP, algorithm = "classic", statistic = "fisher")
+resultKS_HeLa8RvsHeLa0R_BP <- runTest(GOdata_HeLa8RvsHeLa0R_BP, algorithm = "classic", statistic = "ks")
+resultKS.elim_HeLa8RvsHeLa0R_BP <- runTest(GOdata_HeLa8RvsHeLa0R_BP, algorithm = "elim", statistic = "ks")
+
+allRes_HeLa8RvsHeLa0R_BP <- GenTable(GOdata_HeLa8RvsHeLa0R_BP, classicFisher = resultFisher_HeLa8RvsHeLa0R_BP,
+                   classicKS = resultKS_HeLa8RvsHeLa0R_BP, elimKS = resultKS.elim_HeLa8RvsHeLa0R_BP,
+                   orderBy = "elimKS", ranksOf = "classicFisher", topNodes = 10)
+
+pValue.classic_HeLa8RvsHeLa0R_BP <- score(resultKS_HeLa8RvsHeLa0R_BP)
+pValue.elim_HeLa8RvsHeLa0R_BP <- score(resultKS.elim_HeLa8RvsHeLa0R_BP)[names(pValue.classic_HeLa8RvsHeLa0R_BP)]
+gstat_HeLa8RvsHeLa0R_BP <- termStat(GOdata_HeLa8RvsHeLa0R_BP, names(pValue.classic_HeLa8RvsHeLa0R_BP))
+gSize_HeLa8RvsHeLa0R_BP <- gstat_HeLa8RvsHeLa0R_BP$Annotated / max(gstat_HeLa8RvsHeLa0R_BP$Annotated) * 4
+
+#Create Universal colMap function used below to make gCol data object
+colMap <- function(x) {
+  .col <- rep(rev(heat.colors(length(unique(x)))), time = table(x))
+  return(.col[match(1:length(x), order(x))])
+}
+
+#Add the rest of the ontologies and rest of the comparisons#####
+
+gCol_HeLa0RvsHeLaControl_BP <- colMap(gstat_HeLa0RvsHeLaControl_BP$Significant)
+gCol_HeLa8RvsHeLaControl_BP <- colMap(gstat_HeLa8RvsHeLaControl_BP$Significant)
+gCol_HeLa8RvsHeLa0R_BP <- colMap(gstat_HeLa8RvsHeLa0R_BP$Significant)
+
+#####Visualize elim method is more stringent than classic Fisher
+#(0RvsControl_BP)
+plot(pValue.classic_HeLa0RvsHeLaControl_BP, pValue.elim_HeLa0RvsHeLaControl_BP, xlab = "p-value classic", ylab = "p-value elim",
+     pch = 19, cex = gSize_HeLa0RvsHeLaControl_BP, col = gCol_HeLa0RvsHeLaControl_BP)
+
+sel.go_HeLa0RvsHeLaControl_BP <- names(pValue.classic_HeLa0RvsHeLaControl_BP)[pValue.elim_HeLa0RvsHeLaControl_BP < pValue.classic_HeLa0RvsHeLaControl_BP]
+cbind(termStat(GOdata_HeLa0RvsHeLaControl_BP, sel.go_HeLa0RvsHeLaControl_BP),
+      elim = pValue.elim_HeLa0RvsHeLaControl_BP[sel.go_HeLa0RvsHeLaControl_BP],
+      classic = pValue.classic_HeLa0RvsHeLaControl_BP[sel.go_HeLa0RvsHeLaControl_BP])
+
+#(8RvsControl_BP)
+plot(pValue.classic_HeLa8RvsHeLaControl_BP, pValue.elim_HeLa8RvsHeLaControl_BP, xlab = "p-value classic", ylab = "p-value elim",
+     pch = 19, cex = gSize_HeLa8RvsHeLaControl_BP, col = gCol_HeLa8RvsHeLaControl_BP)
+
+sel.go_HeLa8RvsHeLaControl_BP <- names(pValue.classic_HeLa8RvsHeLaControl_BP)[pValue.elim_HeLa8RvsHeLaControl_BP < pValue.classic_HeLa8RvsHeLaControl_BP]
+cbind(termStat(GOdata_HeLa8RvsHeLaControl_BP, sel.go_HeLa8RvsHeLaControl_BP),
+      elim = pValue.elim_HeLa8RvsHeLaControl_BP[sel.go_HeLa8RvsHeLaControl_BP],
+      classic = pValue.classic_HeLa8RvsHeLaControl_BP[sel.go_HeLa8RvsHeLaControl_BP])
+
+#(8Rvs0R_BP)
+plot(pValue.classic_HeLa8RvsHeLa0R_BP, pValue.elim_HeLa8RvsHeLa0R_BP, xlab = "p-value classic", ylab = "p-value elim",
+     pch = 19, cex = gSize_HeLa8RvsHeLa0R_BP, col = gCol_HeLa8RvsHeLa0R_BP)
+
+sel.go_HeLa8RvsHeLa0R_BP <- names(pValue.classic_HeLa8RvsHeLa0R_BP)[pValue.elim_HeLa8RvsHeLa0R_BP < pValue.classic_HeLa8RvsHeLa0R_BP]
+cbind(termStat(GOdata_HeLa8RvsHeLa0R_BP, sel.go_HeLa8RvsHeLa0R_BP),
+      elim = pValue.elim_HeLa8RvsHeLa0R_BP[sel.go_HeLa8RvsHeLa0R_BP],
+      classic = pValue.classic_HeLa8RvsHeLa0R_BP[sel.go_HeLa8RvsHeLa0R_BP])
+
+showSigOfNodes(GOdata_HeLa0RvsHeLaControl_BP, score(resultKS.elim_HeLa0RvsHeLaControl_BP), firstSigNodes = 3, useInfo = 'all')
+showSigOfNodes(GOdata_HeLa8RvsHeLaControl_BP, score(resultKS.elim_HeLa8RvsHeLaControl_BP), firstSigNodes = 3, useInfo = 'all')
+showSigOfNodes(GOdata_HeLa8RvsHeLa0R_BP, score(resultKS.elim_HeLa8RvsHeLa0R_BP), firstSigNodes = 3, useInfo = 'all')
+
+#####Visualize elim method is more stringent than classic Fisher
+
+#uncomment lines below to export pdf or vector based DAG images. Tabular statistical summary available as .csv export#####
+
+#printGraph(GOdata_HeLa0RvsHeLaControl_BP, resultKS.elim_HeLa0RvsHeLaControl_BP, firstSigNodes = 3, fn.prefix = "KS.elim_GOdata_HeLa0RvsHeLaControl_BP", useInfo = "all", pdfSW = TRUE)
+#printGraph(GOdata_HeLa0RvsHeLaControl_BP, resultKS.elim_HeLa0RvsHeLaControl_BP, firstSigNodes = 3, fn.prefix = "KS.elim_GOdata_HeLa0RvsHeLaControl_BP", useInfo = "all", pdfSW = FALSE)
+#Export GO summary to CSV
+#write.csv(allRes_HeLa0RvsHeLaControl_BP, file = "allRes_HeLa0RvsHeLaControl_BP.csv")
+
+#printGraph(GOdata_HeLa8RvsHeLaControl_BP, resultKS.elim_HeLa8RvsHeLaControl_BP, firstSigNodes = 3, fn.prefix = "KS.elim_GOdata_HeLa8RvsHeLaControl_BP", useInfo = "all", pdfSW = TRUE)
+#printGraph(GOdata_HeLa8RvsHeLaControl_BP, resultKS.elim_HeLa8RvsHeLaControl_BP, firstSigNodes = 3, fn.prefix = "KS.elim_GOdata_HeLa8RvsHeLaControl_BP", useInfo = "all", pdfSW = FALSE)
+#Export GO summary to CSV
+#write.csv(allRes_HeLa8RvsHeLaControl_BP, file = "allRes_HeLa8RvsHeLaControl_BP.csv")
+
+#printGraph(GOdata_HeLa8RvsHeLa0R_BP, resultKS.elim_HeLa8RvsHeLa0R_BP, firstSigNodes = 3, fn.prefix = "KS.elim_GOdata_HeLa8RvsHeLa0R_BP", useInfo = "all", pdfSW = TRUE)
+#printGraph(GOdata_HeLa8RvsHeLa0R_BP, resultKS.elim_HeLa8RvsHeLa0R_BP, firstSigNodes = 3, fn.prefix = "KS.elim_GOdata_HeLa8RvsHeLa0R_BP", useInfo = "all", pdfSW = FALSE)
+#Export GO summary to CSV
+#write.csv(allRes_HeLa8RvsHeLa0R_BP, file = "allRes_HeLa8RvsHeLa0R_BP.csv")
+
