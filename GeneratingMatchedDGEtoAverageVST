@@ -1,0 +1,180 @@
+#import ENSG IDs and read counts Make a table with relevant annotations####
+Exp1_countsimport<-read.csv(file = "rawcounts2021.csv", header = TRUE)
+#Prepare cts and coldata objects
+RawReadCounts<-Exp1_countsimport
+rownames(RawReadCounts)<-c(RawReadCounts$gene_id)
+cts<-RawReadCounts[,-1]
+coldata<-read.csv(file = 'coldata2021.csv',header = TRUE)
+row.names(coldata)<-c(coldata$X)
+all(rownames(coldata) %in% colnames(cts))
+all(rownames(coldata) == colnames(cts))
+cts <- cts[, rownames(coldata)]
+all(rownames(coldata) == colnames(cts))
+dds <- DESeqDataSetFromMatrix(countData = cts,
+                              colData = coldata,
+                              design = ~ Condition_NBE)
+featureData <- data.frame(gene=rownames(cts))
+mcols(dds) <- DataFrame(mcols(dds), featureData)
+#factor condition and set levels
+dds$Condition_NBE <- factor(dds$Condition_NBE, levels = c("HeLa_Control","HeLa_0R","HeLa_8R",
+                                                          "HEK_Control","HEK_0R","HEK_8R",
+                                                          "Hep_Control","Hep_0R","Hep_8R"))
+keep <- rowSums(counts(dds)) >= 250
+dds <- dds[keep,]
+#Run DESEQ function on dds object, and save to the same object
+dds <- DESeq(dds)
+HeLa0RvsHeLaControl<-results(dds, contrast=c("Condition_NBE","HeLa_0R","HeLa_Control"), alpha = 0.05)
+HeLa8RvsHeLaControl <- results(dds, contrast=c("Condition_NBE","HeLa_8R","HeLa_Control"), alpha = 0.05)
+HeLa8RvsHeLa0R <- results(dds, contrast=c("Condition_NBE","HeLa_8R","HeLa_0R"), alpha = 0.05)
+summary(HeLa0RvsHeLaControl)
+summary(HeLa8RvsHeLaControl)
+summary(HeLa8RvsHeLa0R)
+#Pipeline diverges from differential expression here
+#variance stabilizing transformations. 
+#This is both faster and ranked SD plots look flatter for our data! (Tibshirani 1988; Huber et al. 2003; Anders and Huber 2010)
+vsd <- vst(dds, blind=FALSE)
+CELLS3R3L_VSD_ENSG<-row.names(assay(vsd))
+#Make  local "mart"
+mart<- useDataset("hsapiens_gene_ensembl", useMart("ensembl"))
+#Make an ENSG lookup table to convert known ENSG IDs to HGNC IDs
+CELLS3R3L_VSD_ENSGlookup <- getBM(
+           mart = mart,
+           attributes = c('ensembl_gene_id',
+           'gene_biotype','hgnc_symbol'),
+           filter = 'ensembl_gene_id',
+           values = CELLS3R3L_VSD_ENSG,
+           uniqueRows = TRUE)
+
+HELA_VSTcountsimport<-read.csv(file = "VSTnormalizedCountsBT_HGNC.csv", header = TRUE)
+HELA_VSTCounts<-HELA_VSTcountsimport
+rownames(HELA_VSTCounts)<-c(HELA_VSTCounts$ensembl_gene_id)
+#remove other columns from here maybe
+subset(HELA_VSTCounts, select=-c(X))
+#inner join the LFC to the normalized counts by ensg
+#HeLa0RvsHeLaControl[rownames(HeLa0RvsHeLaControl) %in% rownames(HELA_VSTCounts),]
+
+HeLa0RvsHeLaControlhandle<-mutate(as.data.frame(HeLa0RvsHeLaControl),ensembl_gene_id= row.names(HeLa0RvsHeLaControl))
+HeLa8RvsHeLaControlhandle<-mutate(as.data.frame(HeLa8RvsHeLaControl),ensembl_gene_id= row.names(HeLa8RvsHeLaControl))
+HeLa8RvsHeLa0Rhandle<-mutate(as.data.frame(HeLa8RvsHeLa0R),ensembl_gene_id= row.names(HeLa8RvsHeLa0R))
+
+VSTtoDGEstats_HELA_0RvsControl<-inner_join(x=HELA_VSTCounts, y=HeLa0RvsHeLaControlhandle, by="ensembl_gene_id", keep=FALSE)
+VSTtoDGEstats_HELA_8RvsControl<-inner_join(x=HELA_VSTCounts, y=HeLa8RvsHeLaControlhandle, by="ensembl_gene_id", keep=FALSE)
+VSTtoDGEstats_HELA_8Rvs0R<-inner_join(x=HELA_VSTCounts, y=HeLa8RvsHeLa0Rhandle, by="ensembl_gene_id", keep=FALSE)
+
+VSTtoDGEstats_HELA_0RvsControl<-mutate(VSTtoDGEstats_HELA_0RvsControl,
+                                      HeLaControlVST_Average= ((HeLa1cnt + HeLa2cnt + HeLa3cnt)/3), 
+                                      HeLa0RVST_Average= ((HeLa1_0R + HeLa2_0R + HeLa3_0R)/3),
+                                      HeLa8RVST_Average= ((HeLa1_8R + HeLa2_8R + HeLa3_8R)/3)) %>%
+                                subset(., select= -c(X, gene_biotype, HeLa1cnt, HeLa2cnt, HeLa3cnt, 
+                                                     HeLa1_0R, HeLa2_0R, HeLa3_0R, 
+                                                     HeLa1_8R, HeLa2_8R, HeLa3_8R))
+VSTtoDGEstats_HELA_8RvsControl<-mutate(VSTtoDGEstats_HELA_8RvsControl,
+                                       HeLaControlVST_Average= ((HeLa1cnt + HeLa2cnt + HeLa3cnt)/3), 
+                                       HeLa0RVST_Average= ((HeLa1_0R + HeLa2_0R + HeLa3_0R)/3),
+                                       HeLa8RVST_Average= ((HeLa1_8R + HeLa2_8R + HeLa3_8R)/3)) %>%
+                                subset(., select= -c(X, gene_biotype, HeLa1cnt, HeLa2cnt, HeLa3cnt, 
+                                       HeLa1_0R, HeLa2_0R, HeLa3_0R, 
+                                       HeLa1_8R, HeLa2_8R, HeLa3_8R))
+VSTtoDGEstats_HELA_8Rvs0R<-mutate(VSTtoDGEstats_HELA_8Rvs0R,
+                                       HeLaControlVST_Average= ((HeLa1cnt + HeLa2cnt + HeLa3cnt)/3), 
+                                       HeLa0RVST_Average= ((HeLa1_0R + HeLa2_0R + HeLa3_0R)/3),
+                                       HeLa8RVST_Average= ((HeLa1_8R + HeLa2_8R + HeLa3_8R)/3)) %>%
+                                subset(., select= -c(X, gene_biotype, HeLa1cnt, HeLa2cnt, HeLa3cnt, 
+                                                   HeLa1_0R, HeLa2_0R, HeLa3_0R, 
+                                                   HeLa1_8R, HeLa2_8R, HeLa3_8R))
+
+write.csv(VSTtoDGEstats_HELA_0RvsControl, file = "VSTtoDGEstats_HELA_0RvsControl.csv", row.names = TRUE)
+write.csv(VSTtoDGEstats_HELA_8RvsControl, file = "VSTtoDGEstats_HELA_8RvsControl.csv", row.names = TRUE)
+write.csv(VSTtoDGEstats_HELA_8Rvs0R, file = "VSTtoDGEstats_HELA_8Rvs0R.csv", row.names = TRUE)
+
+#printable tables 0RvsControl
+SPtable<-VSTtoDGEstats_HELA_0RvsControl[VSTtoDGEstats_HELA_0RvsControl$hgnc_symbol %in% SphingolipidMetabolism_genes,]
+ALinolenictable<-VSTtoDGEstats_HELA_0RvsControl[VSTtoDGEstats_HELA_0RvsControl$hgnc_symbol %in% ALinolenicacidmetabolism_genes,]
+BUnsatFAtable<-VSTtoDGEstats_HELA_0RvsControl[VSTtoDGEstats_HELA_0RvsControl$hgnc_symbol %in% BiosynthUnsatFA_genes,]
+FAbiosynthtable<-VSTtoDGEstats_HELA_0RvsControl[VSTtoDGEstats_HELA_0RvsControl$hgnc_symbol %in% FAbiosynth_genes,]
+FACattable<-VSTtoDGEstats_HELA_0RvsControl[VSTtoDGEstats_HELA_0RvsControl$hgnc_symbol %in% FattyAcidCatabolismGO0009062_genes,]
+FAMettable<-VSTtoDGEstats_HELA_0RvsControl[VSTtoDGEstats_HELA_0RvsControl$hgnc_symbol %in% FattyAcidMetabolismRHSA8978868_genes,]
+GLMettable<-VSTtoDGEstats_HELA_0RvsControl[VSTtoDGEstats_HELA_0RvsControl$hgnc_symbol %in% GlycolipidMetbolicprocessGO006664_genes,]
+LipidMetGOBPtable<-VSTtoDGEstats_HELA_0RvsControl[VSTtoDGEstats_HELA_0RvsControl$hgnc_symbol %in% LipidMetabolicProcess_GO0006629genes,]
+LipidOxtable<-VSTtoDGEstats_HELA_0RvsControl[VSTtoDGEstats_HELA_0RvsControl$hgnc_symbol %in% LipidOxidationGO0034440_genes,]
+MemTraffickingtable<-VSTtoDGEstats_HELA_0RvsControl[VSTtoDGEstats_HELA_0RvsControl$hgnc_symbol %in% MembraneTrafficking_R199991genes,]
+HSRtable<-VSTtoDGEstats_HELA_0RvsControl[VSTtoDGEstats_HELA_0RvsControl$hgnc_symbol %in% HSRGO0034605_genes,]
+MitoFABOtable<-VSTtoDGEstats_HELA_0RvsControl[VSTtoDGEstats_HELA_0RvsControl$hgnc_symbol %in% MitoFABO77289genes,]
+LipoSacharidetable<-VSTtoDGEstats_HELA_0RvsControl[VSTtoDGEstats_HELA_0RvsControl$hgnc_symbol %in% liposacharidemetabolicprocessGO1903509_genes,]
+
+write.csv(SPtable, file = "VSTtoDGEstats_HELA_0RvsControl_SphingolipidMetabolism_genes.csv", row.names = TRUE)
+write.csv(ALinolenictable, file = "VSTtoDGEstats_HELA_0RvsControl_ALinolenicacidmetabolism_genes.csv", row.names = TRUE)
+write.csv(BUnsatFAtable, file = "VSTtoDGEstats_HELA_0RvsControl_BiosynthUnsatFA_genes.csv", row.names = TRUE)
+write.csv(FAbiosynthtable, file = "VSTtoDGEstats_HELA_0RvsControl_FAbiosynth_genes_genes.csv", row.names = TRUE)
+write.csv(FACattable, file = "VSTtoDGEstats_HELA_0RvsControl_FattyAcidCatabolismGO0009062_genes.csv", row.names = TRUE)
+write.csv(FAMettable, file = "VSTtoDGEstats_HELA_0RvsControl_FattyAcidMetabolismRHSA8978868_genes.csv", row.names = TRUE)
+write.csv(GLMettable, file = "VSTtoDGEstats_HELA_0RvsControl_GlycolipidMetbolicprocessGO006664_genes.csv", row.names = TRUE)
+write.csv(LipidMetGOBPtable, file = "VSTtoDGEstats_HELA_0RvsControl_LipidMetabolicProcess_GO0006629genes.csv", row.names = TRUE)
+write.csv(LipidOxtable, file = "VSTtoDGEstats_HELA_0RvsControl_LipidOxidationGO0034440_genes.csv", row.names = TRUE)
+write.csv(MemTraffickingtable, file = "VSTtoDGEstats_HELA_0RvsControl_MembraneTrafficking_R199991genes.csv", row.names = TRUE)
+write.csv(HSRtable, file = "VSTtoDGEstats_HELA_0RvsControl_HSRGO0034605_genes.csv", row.names = TRUE)
+write.csv(MitoFABOtable, file = "VSTtoDGEstats_HELA_0RvsControl_MitoFABO77289genes.csv", row.names = TRUE)
+write.csv(LipoSacharidetable, file = "VSTtoDGEstats_HELA_0RvsControl_liposacharidemetabolicprocessGO1903509_genes.csv", row.names = TRUE)
+
+
+#printable tables 8RvsControl
+SPtable8RvsControl<-VSTtoDGEstats_HELA_8RvsControl[VSTtoDGEstats_HELA_8RvsControl$hgnc_symbol %in% SphingolipidMetabolism_genes,]
+ALinolenictable8RvsControl<-VSTtoDGEstats_HELA_8RvsControl[VSTtoDGEstats_HELA_8RvsControl$hgnc_symbol %in% ALinolenicacidmetabolism_genes,]
+BUnsatFAtable8RvsControl<-VSTtoDGEstats_HELA_8RvsControl[VSTtoDGEstats_HELA_8RvsControl$hgnc_symbol %in% BiosynthUnsatFA_genes,]
+FAbiosynthtable8RvsControl<-VSTtoDGEstats_HELA_8RvsControl[VSTtoDGEstats_HELA_8RvsControl$hgnc_symbol %in% FAbiosynth_genes,]
+FACattable8RvsControl<-VSTtoDGEstats_HELA_8RvsControl[VSTtoDGEstats_HELA_8RvsControl$hgnc_symbol %in% FattyAcidCatabolismGO0009062_genes,]
+FAMettable8RvsControl<-VSTtoDGEstats_HELA_8RvsControl[VSTtoDGEstats_HELA_8RvsControl$hgnc_symbol %in% FattyAcidMetabolismRHSA8978868_genes,]
+GLMettable8RvsControl<-VSTtoDGEstats_HELA_8RvsControl[VSTtoDGEstats_HELA_8RvsControl$hgnc_symbol %in% GlycolipidMetbolicprocessGO006664_genes,]
+LipidMetGOBPtable8RvsControl<-VSTtoDGEstats_HELA_8RvsControl[VSTtoDGEstats_HELA_8RvsControl$hgnc_symbol %in% LipidMetabolicProcess_GO0006629genes,]
+LipidOxtable8RvsControl<-VSTtoDGEstats_HELA_8RvsControl[VSTtoDGEstats_HELA_8RvsControl$hgnc_symbol %in% LipidOxidationGO0034440_genes,]
+MemTraffickingtable8RvsControl<-VSTtoDGEstats_HELA_8RvsControl[VSTtoDGEstats_HELA_8RvsControl$hgnc_symbol %in% MembraneTrafficking_R199991genes,]
+HSRtable8RvsControl<-VSTtoDGEstats_HELA_8RvsControl[VSTtoDGEstats_HELA_8RvsControl$hgnc_symbol %in% HSRGO0034605_genes,]
+MitoFABOtable8RvsControl<-VSTtoDGEstats_HELA_8RvsControl[VSTtoDGEstats_HELA_8RvsControl$hgnc_symbol %in% MitoFABO77289genes,]
+LipoSacharidetable8RvsControl<-VSTtoDGEstats_HELA_8RvsControl[VSTtoDGEstats_HELA_8RvsControl$hgnc_symbol %in% liposacharidemetabolicprocessGO1903509_genes,]
+
+
+
+write.csv(SPtable8RvsControl, file = "VSTtoDGEstats_HELA_8RvsControl_SphingolipidMetabolism_genes.csv", row.names = TRUE)
+write.csv(ALinolenictable8RvsControl, file = "VSTtoDGEstats_HELA_8RvsControl_ALinolenicacidmetabolism_genes.csv", row.names = TRUE)
+write.csv(BUnsatFAtable8RvsControl, file = "VSTtoDGEstats_HELA_8RvsControl_BiosynthUnsatFA_genes.csv", row.names = TRUE)
+write.csv(FAbiosynthtable8RvsControl, file = "VSTtoDGEstats_HELA_8RvsControl_FAbiosynth_genes_genes.csv", row.names = TRUE)
+write.csv(FACattable8RvsControl, file = "VSTtoDGEstats_HELA_8RvsControl_FattyAcidCatabolismGO0009062_genes.csv", row.names = TRUE)
+write.csv(FAMettable8RvsControl, file = "VSTtoDGEstats_HELA_8RvsControl_FattyAcidMetabolismRHSA8978868_genes.csv", row.names = TRUE)
+write.csv(GLMettable8RvsControl, file = "VSTtoDGEstats_HELA_8RvsControl_GlycolipidMetbolicprocessGO006664_genes.csv", row.names = TRUE)
+write.csv(LipidMetGOBPtable8RvsControl, file = "VSTtoDGEstats_HELA_8RvsControl_LipidMetabolicProcess_GO0006629genes.csv", row.names = TRUE)
+write.csv(LipidOxtable8RvsControl, file = "VSTtoDGEstats_HELA_8RvsControl_LipidOxidationGO0034440_genes.csv", row.names = TRUE)
+write.csv(MemTraffickingtable8RvsControl, file = "VSTtoDGEstats_HELA_8RvsControl_MembraneTrafficking_R199991genes.csv", row.names = TRUE)
+write.csv(HSRtable8RvsControl, file = "VSTtoDGEstats_HELA_8RvsControl_HSRGO0034605_genes.csv", row.names = TRUE)
+write.csv(MitoFABOtable8RvsControl, file = "VSTtoDGEstats_HELA_8RvsControl_MitoFABO77289genes.csv", row.names = TRUE)
+write.csv(LipoSacharidetable8RvsControl, file = "VSTtoDGEstats_HELA_8RvsControl_liposacharidemetabolicprocessGO1903509_genes.csv", row.names = TRUE)
+
+
+#printable tables 8Rvs0R
+SPtable8Rvs0R<-VSTtoDGEstats_HELA_8Rvs0R[VSTtoDGEstats_HELA_8Rvs0R$hgnc_symbol %in% SphingolipidMetabolism_genes,]
+ALinolenictable8Rvs0R<-VSTtoDGEstats_HELA_8Rvs0R[VSTtoDGEstats_HELA_8Rvs0R$hgnc_symbol %in% ALinolenicacidmetabolism_genes,]
+BUnsatFAtable8Rvs0R<-VSTtoDGEstats_HELA_8Rvs0R[VSTtoDGEstats_HELA_8Rvs0R$hgnc_symbol %in% BiosynthUnsatFA_genes,]
+FAbiosynthtable8Rvs0R<-VSTtoDGEstats_HELA_8Rvs0R[VSTtoDGEstats_HELA_8Rvs0R$hgnc_symbol %in% FAbiosynth_genes,]
+FACattable8Rvs0R<-VSTtoDGEstats_HELA_8Rvs0R[VSTtoDGEstats_HELA_8Rvs0R$hgnc_symbol %in% FattyAcidCatabolismGO0009062_genes,]
+FAMettable8Rvs0R<-VSTtoDGEstats_HELA_8Rvs0R[VSTtoDGEstats_HELA_8Rvs0R$hgnc_symbol %in% FattyAcidMetabolismRHSA8978868_genes,]
+GLMettable8Rvs0R<-VSTtoDGEstats_HELA_8Rvs0R[VSTtoDGEstats_HELA_8Rvs0R$hgnc_symbol %in% GlycolipidMetbolicprocessGO006664_genes,]
+LipidMetGOBPtable8Rvs0R<-VSTtoDGEstats_HELA_8Rvs0R[VSTtoDGEstats_HELA_8Rvs0R$hgnc_symbol %in% LipidMetabolicProcess_GO0006629genes,]
+LipidOxtable8Rvs0R<-VSTtoDGEstats_HELA_8Rvs0R[VSTtoDGEstats_HELA_8Rvs0R$hgnc_symbol %in% LipidOxidationGO0034440_genes,]
+MemTraffickingtable8Rvs0R<-VSTtoDGEstats_HELA_8Rvs0R[VSTtoDGEstats_HELA_8Rvs0R$hgnc_symbol %in% MembraneTrafficking_R199991genes,]
+HSRtable8Rvs0R<-VSTtoDGEstats_HELA_8Rvs0R[VSTtoDGEstats_HELA_8Rvs0R$hgnc_symbol %in% HSRGO0034605_genes,]
+MitoFABOtable8Rvs0R<-VSTtoDGEstats_HELA_8Rvs0R[VSTtoDGEstats_HELA_8Rvs0R$hgnc_symbol %in% MitoFABO77289genes,]
+LipoSacharidetable8Rvs0R<-VSTtoDGEstats_HELA_8Rvs0R[VSTtoDGEstats_HELA_8Rvs0R$hgnc_symbol %in% liposacharidemetabolicprocessGO1903509_genes,]
+
+
+write.csv(SPtable8Rvs0R, file = "VSTtoDGEstats_HELA_8Rvs0R_SphingolipidMetabolism_genes.csv", row.names = TRUE)
+write.csv(ALinolenictable8Rvs0R, file = "VSTtoDGEstats_HELA_8Rvs0R_ALinolenicacidmetabolism_genes.csv", row.names = TRUE)
+write.csv(BUnsatFAtable8Rvs0R, file = "VSTtoDGEstats_HELA_8Rvs0R_BiosynthUnsatFA_genes.csv", row.names = TRUE)
+write.csv(FAbiosynthtable8Rvs0R, file = "VSTtoDGEstats_HELA_8Rvs0R_FAbiosynth_genes_genes.csv", row.names = TRUE)
+write.csv(FACattable8Rvs0R, file = "VSTtoDGEstats_HELA_8Rvs0R_FattyAcidCatabolismGO0009062_genes.csv", row.names = TRUE)
+write.csv(FAMettable8Rvs0R, file = "VSTtoDGEstats_HELA_8Rvs0R_FattyAcidMetabolismRHSA8978868_genes.csv", row.names = TRUE)
+write.csv(GLMettable8Rvs0R, file = "VSTtoDGEstats_HELA_8Rvs0R_GlycolipidMetbolicprocessGO006664_genes.csv", row.names = TRUE)
+write.csv(LipidMetGOBPtable8Rvs0R, file = "VSTtoDGEstats_HELA_8Rvs0R_LipidMetabolicProcess_GO0006629genes.csv", row.names = TRUE)
+write.csv(LipidOxtable8Rvs0R, file = "VSTtoDGEstats_HELA_8Rvs0R_LipidOxidationGO0034440_genes.csv", row.names = TRUE)
+write.csv(MemTraffickingtable8Rvs0R, file = "VSTtoDGEstats_HELA_8Rvs0R_MembraneTrafficking_R199991genes.csv", row.names = TRUE)
+write.csv(HSRtable8Rvs0R, file = "VSTtoDGEstats_HELA_8Rvs0R_HSRGO0034605_genes.csv", row.names = TRUE)
+write.csv(MitoFABOtable8Rvs0R, file = "VSTtoDGEstats_HELA_8Rvs0R_MitoFABO77289genes.csv", row.names = TRUE)
+write.csv(LipoSacharidetable8Rvs0R, file = "VSTtoDGEstats_HELA_8Rvs0R_liposacharidemetabolicprocessGO1903509_genes.csv", row.names = TRUE)
