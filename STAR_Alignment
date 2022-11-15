@@ -2,6 +2,17 @@
 #This script exemplifies the STAR alignment process with 3 HeLa samples from distinct experimental conditions.
 #STAR aligns adapter and PhiX cleaned reads of sufficient quality to a previously generated indexed reference genome.
 
+#A genome index The basic options to generate genome indices are as follows:
+#--runThreadN 24
+#--runMode genomeGenerate
+#--genomeDir /home/luis/BI_sandbox/alignwSTAR/IndexedGenome
+#--genomeFastaFiles /path/to/genome/fasta1 /path/to/genome/fasta2 ...
+#--sjdbGTFfile /path/to/annotations.gtf
+#--sjdbOverhang 99
+
+#The following need only be run once to generate an indexed genome used in the following steps:
+STAR --runThreadN 24 --runMode genomeGenerate --genomeDir /home/luis/BI_sandbox/alignwSTAR/IndexedGenome --genomeFastaFiles /path/to/genome/fasta1 /path/to/genome/fasta2 --sjdbGTFfile /path/to/annotations.gtf --sjdbOverhang 99
+
 #Organizational Folders and Names
 #run folder= /home/luis/Documents/AR_testing
 #genomeDir= /home/luis/BI_sandbox/alignwSTAR/IndexedGenome
