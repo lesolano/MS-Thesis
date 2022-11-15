@@ -1,2 +1,29 @@
-#Script #2 
-#This is a placeholder for a script which installs neccessary Linux tools
+#Script # 
+#Install BBDUK######
+#Linux/Macintosh
+#from the terminal window/linux shell:
+
+cd (installation parent folder)
+
+#Extract the files using tar:
+tar -xvzf BBMap_(version).tar.gz
+
+#this creates a subfolder named bbmap with the shell scripts and other necessary files.
+
+#Install STAR####
+# Get latest STAR source from releases
+wget https://github.com/alexdobin/STAR/archive/2.7.10b.tar.gz
+tar -xzf 2.7.10b.tar.gz
+cd STAR-2.7.10b
+
+#Install samtools############
+cd samtools-1.x    # and similarly for bcftools and htslib
+./configure --prefix=/where/to/install
+make
+make install
+
+#Install HTSeq #######
+pip install HTSeq
+
+#Install multiQC########
+pip install multiqc
