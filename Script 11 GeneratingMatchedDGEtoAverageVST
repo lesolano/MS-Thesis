@@ -1,3 +1,5 @@
+#Script 11
+
 #import ENSG IDs and read counts Make a table with relevant annotations####
 Exp1_countsimport<-read.csv(file = "rawcounts2021.csv", header = TRUE)
 #Prepare cts and coldata objects
