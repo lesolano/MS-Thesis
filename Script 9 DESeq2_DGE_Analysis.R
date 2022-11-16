@@ -1,3 +1,5 @@
+#Script 9
+
 #This script reproduces the differential gene expression process for all HeLa samples with DESeq2
 
 #load libraries####
