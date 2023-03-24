@@ -1,0 +1,274 @@
+#API version of GOMapper
+
+#This version co-written with Nicholas D'Sa
+
+#!/usr/bin/env python
+# coding: utf-8
+
+# Example Test Cases
+# Quick test: python3 GO\ Keyword\ Network\ Mapper.py 'hgnc_symbol ensembl_gene_id' HeLa0RvsHeLaControl_DEG_Results_2021.csv HeLa0RvsHeLaControl_DEG_Results_2021.csv lipid .test
+# Full test: python3 GO\ Keyword\ Network\ Mapper.py 'hgnc_symbol ensembl_gene_id' HeLa0RvsHeLaControl_DEG_Results_2021.csv lipid HeLa0RvsHeLaControl1_DEG_Results_2021.csv dna "heat shock" 'initiation factor'
+
+# import libraries
+import networkx
+import obonet
+import pandas as pd
+import functools as ft
+import requests
+import sys
+
+# Save the OBO formatted GO network from a url to a obonet graph
+url = 'http://purl.obolibrary.org/obo/go.obo'
+graph = obonet.read_obo(url)
+
+# iterate through the command line arguments and store the DEG file paths and keywords
+DEGFilePaths = []
+keywords = []
+# if '.test' is an argument test will be set to true and only the first 5 GO Terms will be used for each keyword
+test = False
+gene_column_names = sys.argv[1].split(' ')
+print(gene_column_names)
+for arg in sys.argv[2:]:
+    
+
+    # for rapid testing - sets test to True
+    if arg == '.test':
+        test = True
+        continue
+    # remove double and single quotes
+    arg = arg.strip("\'")
+    arg = arg.strip('\"')
+    if arg.endswith('.csv'):
+        DEGFilePaths.append(arg)
+    else:
+        keywords.append(arg)
+
+# KWNameQuery takes a user input keyword and searches all GO Terms for that keyword.
+# Hits are stored in a list called keyword_nodes
+
+def KWNameQuery(userinput):
+    name_nodes = []
+    for node in graph.nodes:
+        inputWithoutDashes = userinput.replace('-', ' ')
+        if (userinput.lower() in graph.nodes[node]['name'].lower() or inputWithoutDashes.lower() in graph.nodes[node]['name'].lower()):
+            name_nodes.append(node)
+    return (name_nodes)
+
+# KWDefQuery takes a user input keyword and searches all GO Terms definitions for that keyword.
+# Hits are stored in a list called def_nodes
+
+def KWDefQuery(userinput):
+    def_nodes = []
+    inputWithoutDashes = userinput.replace('-', ' ')
+    for node in graph.nodes:
+        if (userinput.lower() in graph.nodes[node]['def'].lower() or inputWithoutDashes.lower() in graph.nodes[node]['def'].lower()):
+            def_nodes.append(node)
+    return (def_nodes)
+
+# ConcatKeywordHits takes in the userinput, calls KWNameQuery and KWDefQuery seperately with the same input
+# then uses set to return only unique hits
+
+
+def ConcatKeywordHits(userinput):
+    return (set(KWNameQuery(userinput) + KWDefQuery(userinput)))
+
+
+# ID to Name and Name to ID fetch either ID or Name, respectively from the other. Exact matches only
+id_to_name = {id_: data.get('name') for id_, data in graph.nodes(data=True)}
+name_to_id = {data['name']: id_ for id_,
+              data in graph.nodes(data=True) if 'name' in data}
+
+# Function outputs parent terms to an input term
+
+
+def Parentfinder(term):
+    node = term
+    for child, parent, key in graph.out_edges(node, keys=True):
+        return (f'{id_to_name[child]} -> {key} -> {id_to_name[parent]}')
+
+# Function outputs parent terms to an input term
+
+
+def Childfinder(term):
+    node = term
+    for parent, child, key in graph.in_edges(node, keys=True):
+        return (f'{id_to_name[child]} <- {key} <- {id_to_name[parent]}')
+
+# Identifies superterm relationships to the input GOTERM
+
+
+def SupertermIdentifier(GOTERM):
+    return (sorted(id_to_name[superterm] for superterm in networkx.descendants(graph, str(GOTERM))))
+
+
+def SubtermIdentifier(GOTERM):
+    return (sorted(id_to_name[subterm] for subterm in networkx.ancestors(graph, str(GOTERM))))
+
+
+def AllPathsToRoot(GOTERM, ROOT_GOTERM):
+    paths = networkx.all_simple_paths(
+        graph,
+        source=GOTERM,
+        target=ROOT_GOTERM
+    )
+    for path in paths:
+        return ' -> '.join(id_to_name[node] for node in path)
+
+# One function to house all the relationships per GOTERM
+
+
+def NetworkMapper(GOTERM):
+    relationships = {
+        'GOTERM': GOTERM,
+        'GONAME': id_to_name[GOTERM],
+        'Parents': [],
+        'Children': [],
+        'Superterms': [],
+        'Subterms': [],
+        'PathtoMF': [],
+        'PathtoBP': [],
+        'PathtoCC': []
+    }
+    relationships['Parents'] = Parentfinder(GOTERM)
+    relationships['Children'] = Childfinder(GOTERM)
+    relationships['Superterms'] = SupertermIdentifier(GOTERM)
+    relationships['Subterms'] = SubtermIdentifier(GOTERM)
+    relationships['PathtoMF'] = AllPathsToRoot(
+        GOTERM, name_to_id['molecular_function'])
+    relationships['PathtoBP'] = AllPathsToRoot(
+        GOTERM, name_to_id['biological_process'])
+    relationships['PathtoCC'] = AllPathsToRoot(
+        GOTERM, name_to_id['cellular_component'])
+    return (relationships)
+
+# uses quickGO API to download all GO terms related to a specific GO term and return the GO term to gene symbol dictionary
+# donwloadLimit - number of annotations to be downloaded maximum - can be increased up to 2,000,000
+
+
+def getGOToGeneDict(goId, downloadLimit=2000000):
+    # stores the mapping
+    goTermToGenes = {}
+
+    # base url - uses the downloadSearch quickGO API
+    url = "https://www.ebi.ac.uk/QuickGO/services/annotation/downloadSearch?"
+    for i in range(3):
+        # if the API call is successful worked the loop will be broken out of
+        try:
+            # GET request to API
+            # stream is used so memory is not exceeded since files may be >1GB
+            # params specify the query parameters
+
+            with requests.get(url, stream=True,
+                              headers={"Accept": "text/tsv"},
+                              params={
+                                  "includeFields": ["name"],
+                                  "selectedFields": ["symbol", "goId"],
+                                  "downloadLimit": downloadLimit,
+                                  "goId": [goId],
+                                  "goUsage": "descendants",
+                                  "goUsageRelationships": ["is_a", "part_of", "occurs_in", "regulates"],
+                                  "taxonId": "9606",
+                                  "taxonUsage": "descendants"
+                              }) as r:
+                # check if connection properly established
+                r.raise_for_status()
+                # use stream to make the go:gene symbol dictionary
+
+                # Note: Chunk size currently set to 10MB
+                # savedLine holds the end part of the chunk that is an incomplete line in the tsv
+                # savedLine is placed at the beginning of the next chunk's readable lines
+                savedLine = ""
+                for chunk in r.iter_content(chunk_size=1024*1024*10):
+                    if chunk:
+                        # parse chunk
+                        tmp = chunk.decode('utf-8').split("\n")
+                        tmp[0] = savedLine + tmp[0]
+                        readableLines = tmp[:-1]
+                        savedLine = tmp[-1]
+                        for line in readableLines:
+                            tabSplitLine = line.split("\t")
+                            geneSymbol, goTerm = tabSplitLine[0], tabSplitLine[1]
+                            # skip header line
+                            if geneSymbol == 'SYMBOL':
+                                continue
+                            # initialize empty set if needed and add the symbol to goTermToGenes[goTerm] set
+                            goTermToGenes.setdefault(goTerm, set()).add(geneSymbol)
+            # break out of loop if API call finishes with no error
+            break
+        # Error Handling
+        except Exception as e:
+            print(goId, " didn't work")
+            print(e)
+            #if 
+            if i < 2:
+                print("Trying API call again")
+                continue
+            with open(f"{allGoIds[0]}-{allGoIds[-1]}_error.txt", 'a') as f:
+                f.write(goId)
+
+    print(f"Finished {goId}")
+    return goTermToGenes
+
+
+# Import DEG outputs from DESEQ2 as dataframes
+DEGdfs = []
+for DEGFilePath in DEGFilePaths:
+    DEGdf = pd.read_csv(DEGFilePath)
+    # only select important columns
+    DEGdf = DEGdf[gene_column_names + ['log2FoldChange', 'padj']]
+    fileName = DEGFilePath.split('.')[0]
+    DEGdf = DEGdf.rename(columns={c: f'{c}_{fileName}' for c in DEGdf.columns if c not in gene_column_names})
+    DEGdfs.append(DEGdf)
+
+# inner join all the DEGs
+# TODO: Test with different DESeq files
+df_final = ft.reduce(lambda left, right: pd.merge(
+    left, right, on=gene_column_names), DEGdfs)
+
+for keyword in keywords:
+    # dictionary to store final output
+    allGoTermToGenes = {}
+    # store all GO ids associated with keyword
+    allGoIds = sorted(list(ConcatKeywordHits(keyword)))
+    # if this is a test run only using the first five GO terms
+    if test:
+        allGoIds = allGoIds[:5]
+    # add all GO term to gene mappings
+    for goId in allGoIds:
+        # add all key-value pairs from current GO term query to the full dictionary
+        allGoTermToGenes.update(getGOToGeneDict(goId))
+
+    # Make a DataFrame with all the DEGs for each GO Term
+    DEGsByGoTerm = []
+
+    for goTerm, geneList in sorted(allGoTermToGenes.items()):
+        # extract goTerm name from obonet graph
+        goName = graph.nodes[goTerm]['name']
+        # make a one-row dataframe with GO ID and GO Name
+        goNameAndTerm = pd.DataFrame({'GO ID': [goTerm],
+                                      'GO Name': [goName]})
+        # select all rows of df_final with a gene that is associated with the GO Term
+        #TODO: have a better way of detecting rather than hgnc symbol first?
+        goDEGs = df_final[df_final[gene_column_names[0]].isin(geneList)]
+        # add the GO Term/GO name + DEGs to DEGsByGOTerm
+        DEGsByGoTerm.append(
+            pd.concat([goNameAndTerm, goDEGs], ignore_index=True))
+
+    # make one DataFrame with all DEGs categorized by GO Term and output to csv
+    mappedGoTermToDEGs = pd.concat(DEGsByGoTerm, ignore_index=True)
+    keyword_formatted = keyword.replace(' ', '_')
+    mappedGoTermToDEGs.to_csv(
+        f'{keyword_formatted}_mapped_GO_DGE.csv', index=False)
+    print(f'Outputted DEG to {keyword_formatted}_mapped_GO_DGE.csv')
+
+    # Hierarchy list holds the known relationships of GOTs of interest
+    # Calls NetworkMapper on each GOT of interest.
+    # writes Result to a csv dropping the index column
+    
+    Hierarchy_list=[]
+    for GOT in list(allGoIds):
+        Hierarchy_list.append(NetworkMapper(GOT))
+
+    Hierarchy_listdf = pd.DataFrame(Hierarchy_list)
+    Hierarchy_listdf.to_csv(f"Full_{keyword_formatted}_GO_Relationships.csv", index=False)
+    print(f'Outputted GO relationships to Full_{keyword_formatted}_GO_Relationships.csv\r\n')
